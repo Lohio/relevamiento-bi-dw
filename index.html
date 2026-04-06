@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relevamiento BI / Data Warehouse — d-byte</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #111111;
+  --surface: #1A1A1A;
+  --surface2: #222222;
+  --surface3: #2A2A2A;
+  --border: rgba(255,255,255,0.09);
+  --border-h: rgba(255,255,255,0.20);
+  --border-a: rgba(255,255,255,0.50);
+  --text: #EEEEE8;
+  --t2: rgba(238,238,232,0.55);
+  --t3: rgba(238,238,232,0.30);
+  --accent: #C6EF3E;
+  --accent-d: rgba(198,239,62,0.13);
+  --accent-b: rgba(198,239,62,0.38);
+  --r: 7px;
+  --rl: 12px;
+  --sidebar: 240px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+/* LAYOUT */
+.shell { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: var(--sidebar);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 20; overflow: hidden;
+}
+.sb-brand { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sb-tag { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; font-weight: 600; }
+.sb-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+
+.sb-nav { flex: 1; overflow-y: auto; padding: 12px 10px; }
+.sb-nav::-webkit-scrollbar { width: 4px; }
+.sb-nav::-webkit-scrollbar-track { background: transparent; }
+.sb-nav::-webkit-scrollbar-thumb { background: var(--border-h); border-radius: 2px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r);
+  cursor: pointer; transition: background 0.13s; margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--accent-d); }
+.nav-item.active .nav-num { color: var(--accent); border-color: var(--accent-b); }
+.nav-item.active .nav-lbl { color: var(--text); }
+.nav-item.done .nav-num { background: var(--accent); color: #111; border-color: var(--accent); font-size: 10px; }
+
+.nav-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--border-h);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--t3);
+  flex-shrink: 0; transition: all 0.18s; letter-spacing: 0;
+}
+.nav-lbl { font-size: 12px; color: var(--t2); transition: color 0.13s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-check { margin-left: auto; font-size: 11px; color: var(--accent); display: none; flex-shrink: 0; }
+.nav-item.done .nav-check { display: block; }
+
+.sb-footer { padding: 16px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.prog-lbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--t3); margin-bottom: 7px; letter-spacing: 0.04em; text-transform: uppercase; }
+.prog-track { height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.35s ease; }
+
+/* MAIN */
+.main { margin-left: var(--sidebar); flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* TOP BAR */
+.topbar {
+  position: sticky; top: 0;
+  background: rgba(17,17,17,0.94);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 36px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  z-index: 10; backdrop-filter: blur(10px);
+}
+.tb-info { min-width: 0; }
+.tb-sup { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--t3); margin-bottom: 2px; white-space: nowrap; }
+.tb-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-btn { font-family: var(--font); font-size: 12px; font-weight: 500; padding: 7px 16px; border-radius: var(--r); border: 1px solid var(--border-h); background: transparent; color: var(--t2); cursor: pointer; transition: all 0.13s; white-space: nowrap; flex-shrink: 0; }
+.tb-btn:hover { border-color: var(--border-a); color: var(--text); background: var(--surface2); }
+
+/* FORM AREA */
+.form-area { flex: 1; padding: 44px 48px 80px; max-width: 740px; width: 100%; }
+
+/* STEP PANELS */
+.step { display: none; }
+.step.active { display: block; animation: fu 0.25s ease; }
+@keyframes fu { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+.step-head { margin-bottom: 32px; }
+.step-tag { font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+.step-head h2 { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.3; margin-bottom: 6px; }
+.step-head p { font-size: 13px; color: var(--t2); line-height: 1.65; max-width: 500px; }
+
+/* FIELDS */
+.field { margin-bottom: 24px; }
+.field-lbl { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 9px; }
+.field-hint { font-size: 11px; color: var(--t3); font-weight: 400; margin-left: 5px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+input[type=text], input[type=email], input[type=date], textarea, select {
+  width: 100%; font-family: var(--font); font-size: 13px; color: var(--text);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 10px 14px;
+  transition: border-color 0.13s, background 0.13s;
+  outline: none; appearance: none; -webkit-appearance: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--border-a); background: var(--surface3); }
+input::placeholder, textarea::placeholder { color: var(--t3); }
+textarea { resize: vertical; min-height: 82px; line-height: 1.55; }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; cursor: pointer; }
+select option { background: #222; color: var(--text); }
+
+/* CHIPS */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  font-family: var(--font); font-size: 12px; font-weight: 400;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--t2); cursor: pointer; transition: all 0.13s; user-select: none;
+  line-height: 1;
+}
+.chip:hover { border-color: var(--border-h); color: var(--text); }
+.chip.sel { background: var(--accent-d); border-color: var(--accent-b); color: var(--accent); }
+
+/* RATING */
+.rating-wrap { display: flex; flex-direction: column; gap: 11px; }
+.rating-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rating-lbl { font-size: 12px; color: var(--t2); width: 180px; flex-shrink: 0; }
+.rating-chips { display: flex; gap: 6px; }
+.r-chip { width: 34px; height: 34px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface2); color: var(--t3); font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; font-family: var(--font); }
+.r-chip:hover { border-color: var(--border-h); color: var(--t2); }
+.r-chip.sel { background: var(--accent-d); border-color: var(--accent-b); color: var(--accent); }
+
+/* NAV FOOTER */
+.nav-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); }
+.btn { font-family: var(--font); font-size: 13px; font-weight: 500; padding: 9px 22px; border-radius: var(--r); border: 1px solid var(--border-h); background: transparent; color: var(--t2); cursor: pointer; transition: all 0.13s; }
+.btn:hover { border-color: var(--border-a); color: var(--text); background: var(--surface2); }
+.btn.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { background: #d4f84a; }
+
+/* CONFIRM */
+.confirm { display: none; text-align: center; padding: 60px 24px; }
+.confirm.active { display: block; animation: fu 0.35s ease; }
+.confirm-ico { width: 64px; height: 64px; border-radius: 50%; background: var(--accent-d); border: 1px solid var(--accent-b); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 26px; }
+.confirm h2 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+.confirm p { font-size: 13px; color: var(--t2); max-width: 400px; margin: 0 auto 28px; line-height: 1.65; }
+.confirm-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* MODAL */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.overlay.open { display: flex; animation: fu 0.18s ease; }
+.modal { background: var(--surface); border: 1px solid var(--border-h); border-radius: var(--rl); width: 100%; max-width: 600px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-hdr { padding: 18px 22px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.modal-hdr h3 { font-size: 14px; font-weight: 600; }
+.modal-x { background: none; border: none; color: var(--t2); font-size: 22px; cursor: pointer; padding: 2px 8px; border-radius: 5px; line-height: 1; font-family: var(--font); }
+.modal-x:hover { background: var(--surface2); color: var(--text); }
+.modal-fields { padding: 14px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+.modal-fl label { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3); margin-bottom: 5px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 16px 22px; }
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border-h); border-radius: 2px; }
+.email-preview { font-size: 12px; color: var(--t2); line-height: 1.7; white-space: pre-wrap; font-family: 'Courier New', monospace; }
+.modal-ftr { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; flex-wrap: wrap; }
+
+/* DIVIDER */
+.hr { height: 1px; background: var(--border); margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-tag">d-byte · Relevamiento</div>
+    <div class="sb-title">BI / Data Warehouse</div>
+  </div>
+  <nav class="sb-nav" id="sb-nav"></nav>
+  <div class="sb-footer">
+    <div class="prog-lbl"><span>Progreso</span><span id="prog-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="tb-info">
+      <div class="tb-sup" id="tb-sup">Sección 1 de 10</div>
+      <div class="tb-title" id="tb-title">Información general</div>
+    </div>
+    <button class="tb-btn" onclick="openModal()">Ver email</button>
+  </div>
+
+  <div class="form-area">
+
+    <!-- S1 -->
+    <div class="step active" data-s="1">
+      <div class="step-head">
+        <div class="step-tag">Sección 01</div>
+        <h2>Información general del área</h2>
+        <p>Datos básicos del área o unidad de negocio que se está relevando.</p>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">Área / Unidad de negocio</label>
+          <input type="text" id="s1_area" placeholder="Ej: Comercial, Finanzas, Operaciones...">
+        </div>
+        <div class="field">
+          <label class="field-lbl">Responsable del área</label>
+          <input type="text" id="s1_responsable" placeholder="Nombre y apellido">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">Rol del encuestado</label>
+          <div class="chips" data-id="s1_rol" data-mode="single">
+            <div class="chip" data-v="Dirección">Dirección</div>
+            <div class="chip" data-v="Gerencia">Gerencia</div>
+            <div class="chip" data-v="Analista">Analista</div>
+            <div class="chip" data-v="IT / Sistemas">IT / Sistemas</div>
+            <div class="chip" data-v="Otro">Otro</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">Fecha</label>
+          <input type="date" id="s1_fecha">
+        </div>
+      </div>
+    </div>
+
+    <!-- S2 -->
+    <div class="step" data-s="2">
+      <div class="step-head">
+        <div class="step-tag">Sección 02</div>
+        <h2>Objetivos de negocio</h2>
+        <p>Qué decisiones necesitan tomar con los datos y qué problemas tienen hoy.</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Qué tipo de decisiones necesitan tomar con los reportes? <span class="field-hint">Selección múltiple</span></label>
+        <div class="chips" data-id="s2_decisiones" data-mode="multi">
+          <div class="chip" data-v="Seguimiento de ventas">Seguimiento de ventas</div>
+          <div class="chip" data-v="Control de costos">Control de costos</div>
+          <div class="chip" data-v="Gestión operativa">Gestión operativa</div>
+          <div class="chip" data-v="Planificación estratégica">Planificación estratégica</div>
+          <div class="chip" data-v="Atención al cliente">Atención al cliente</div>
+          <div class="chip" data-v="Recursos humanos">Recursos humanos</div>
+          <div class="chip" data-v="Otro">Otro</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Cuáles son los principales problemas con la información actual? <span class="field-hint">Selección múltiple</span></label>
+        <div class="chips" data-id="s2_problemas" data-mode="multi">
+          <div class="chip" data-v="Datos dispersos en múltiples sistemas">Datos dispersos</div>
+          <div class="chip" data-v="Información desactualizada">Información desactualizada</div>
+          <div class="chip" data-v="Errores e inconsistencias">Errores e inconsistencias</div>
+          <div class="chip" data-v="Depende de una sola persona">Depende de una sola persona</div>
+          <div class="chip" data-v="Proceso manual y lento">Proceso manual y lento</div>
+          <div class="chip" data-v="Sin control de acceso por rol">Sin control de acceso</div>
+          <div class="chip" data-v="Otro">Otro</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Cuáles son los KPIs más importantes para su área?</label>
+        <textarea id="s2_kpis" placeholder="Ej: Ventas mensuales, tasa de conversión, costo por operación, nivel de servicio..."></textarea>
+      </div>
+    </div>
+
+    <!-- S3 -->
+    <div class="step" data-s="3">
+      <div class="step-head">
+        <div class="step-tag">Sección 03</div>
+        <h2>Fuentes de datos</h2>
+        <p>¿Dónde viven los datos hoy y quién los mantiene?</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Qué sistemas utilizan como fuente de datos? <span class="field-hint">Selección múltiple</span></label>
+        <div class="chips" data-id="s3_sistemas" data-mode="multi">
+          <div class="chip" data-v="ERP (SAP, Oracle, Odoo...)">ERP (SAP, Oracle, Odoo...)</div>
+          <div class="chip" data-v="CRM (Salesforce, HubSpot, Zoho...)">CRM</div>
+          <div class="chip" data-v="E-commerce / tienda online">E-commerce</div>
+          <div class="chip" data-v="Sistema logístico / WMS">Sistema logístico / WMS</div>
+          <div class="chip" data-v="Hojas de cálculo (Excel, Sheets)">Excel / Sheets</div>
+          <div class="chip" data-v="Base de datos propia">Base de datos propia</div>
+          <div class="chip" data-v="Sistema contable / facturación">Sistema contable</div>
+          <div class="chip" data-v="Archivos planos / CSV">Archivos / CSV</div>
+          <div class="chip" data-v="APIs de terceros">APIs de terceros</div>
+          <div class="chip" data-v="Otro">Otro</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Dónde están alojados los datos? <span class="field-hint">Múltiple</span></label>
+          <div class="chips" data-id="s3_ubicacion" data-mode="multi">
+            <div class="chip" data-v="Servidores propios (on-premise)">Servidores propios</div>
+            <div class="chip" data-v="Nube pública (AWS, Azure, GCP)">Nube pública</div>
+            <div class="chip" data-v="Proveedor / tercero">Proveedor / tercero</div>
+            <div class="chip" data-v="Equipos locales (PCs)">Equipos locales</div>
+            <div class="chip" data-v="No lo sé">No lo sé</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿Con qué frecuencia se actualizan?</label>
+          <div class="chips" data-id="s3_frecuencia" data-mode="single">
+            <div class="chip" data-v="En tiempo real">Tiempo real</div>
+            <div class="chip" data-v="Cada pocas horas">Cada pocas horas</div>
+            <div class="chip" data-v="Diariamente">Diariamente</div>
+            <div class="chip" data-v="Semanalmente">Semanalmente</div>
+            <div class="chip" data-v="Sin frecuencia fija">Sin frecuencia fija</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Existe un responsable definido por cada fuente de datos?</label>
+        <div class="chips" data-id="s3_resp" data-mode="single">
+          <div class="chip" data-v="Sí, cada fuente tiene responsable">Sí, hay responsables</div>
+          <div class="chip" data-v="Solo para algunas fuentes">Solo para algunas</div>
+          <div class="chip" data-v="No hay responsables asignados">No hay responsables</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S4 -->
+    <div class="step" data-s="4">
+      <div class="step-head">
+        <div class="step-tag">Sección 04</div>
+        <h2>Integración y uso de datos</h2>
+        <p>¿Necesitan combinar información entre sistemas? ¿Cómo lo hacen hoy?</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Necesitan cruzar o combinar información entre distintos sistemas?</label>
+        <div class="chips" data-id="s4_cruce" data-mode="single">
+          <div class="chip" data-v="Sí, es fundamental">Sí, es fundamental</div>
+          <div class="chip" data-v="Sí, pero no siempre">Sí, pero no siempre</div>
+          <div class="chip" data-v="No, usamos un solo sistema">No, un solo sistema</div>
+          <div class="chip" data-v="No estoy seguro/a">No estoy seguro/a</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Si cruzan datos, ¿puede dar un ejemplo concreto?</label>
+        <textarea id="s4_ejemplo" placeholder="Ej: Vincular ventas del CRM con facturación del ERP para ver rentabilidad por cliente..."></textarea>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Cómo se realizan hoy esas integraciones?</label>
+        <div class="chips" data-id="s4_como" data-mode="single">
+          <div class="chip" data-v="Manual (copy-paste, Excel, exportación)">Manual (Excel, exportación)</div>
+          <div class="chip" data-v="Semi-automatizado">Semi-automatizado</div>
+          <div class="chip" data-v="Automatizado (script / ETL)">Automatizado (ETL / script)</div>
+          <div class="chip" data-v="No se hace actualmente">No se hace actualmente</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S5 -->
+    <div class="step" data-s="5">
+      <div class="step-head">
+        <div class="step-tag">Sección 05</div>
+        <h2>Reportería actual</h2>
+        <p>Herramientas que usan hoy, quién consume la información y sus limitaciones.</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Qué herramientas usan para reportes? <span class="field-hint">Selección múltiple</span></label>
+        <div class="chips" data-id="s5_herr" data-mode="multi">
+          <div class="chip" data-v="Excel / Google Sheets">Excel / Google Sheets</div>
+          <div class="chip" data-v="Power BI">Power BI</div>
+          <div class="chip" data-v="Tableau">Tableau</div>
+          <div class="chip" data-v="Looker / Looker Studio">Looker Studio</div>
+          <div class="chip" data-v="Dashboard del propio sistema">Dashboard del sistema</div>
+          <div class="chip" data-v="Desarrollo propio">Desarrollo propio</div>
+          <div class="chip" data-v="Sin herramienta definida">Sin herramienta</div>
+          <div class="chip" data-v="Otro">Otro</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Quiénes consumen los reportes? <span class="field-hint">Múltiple</span></label>
+          <div class="chips" data-id="s5_cons" data-mode="multi">
+            <div class="chip" data-v="Alta dirección">Alta dirección</div>
+            <div class="chip" data-v="Gerencia media">Gerencia media</div>
+            <div class="chip" data-v="Analistas">Analistas</div>
+            <div class="chip" data-v="Equipos operativos">Equipos operativos</div>
+            <div class="chip" data-v="Clientes / externos">Clientes / externos</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿Cómo se comparten? <span class="field-hint">Múltiple</span></label>
+          <div class="chips" data-id="s5_comp" data-mode="multi">
+            <div class="chip" data-v="Email">Email</div>
+            <div class="chip" data-v="Portal / intranet">Portal / intranet</div>
+            <div class="chip" data-v="Reuniones periódicas">Reuniones</div>
+            <div class="chip" data-v="Acceso directo a la herramienta">Acceso directo</div>
+            <div class="chip" data-v="WhatsApp / chat interno">WhatsApp / chat</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Cuáles son las principales limitaciones de la reportería actual?</label>
+        <textarea id="s5_limit" placeholder="Ej: Lleva horas preparar el informe, no podemos cruzar ventas con logística..."></textarea>
+      </div>
+    </div>
+
+    <!-- S6 -->
+    <div class="step" data-s="6">
+      <div class="step-head">
+        <div class="step-tag">Sección 06</div>
+        <h2>Seguridad y acceso</h2>
+        <p>Identificar requerimientos de protección y control de la información.</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Manejan datos sensibles o confidenciales? <span class="field-hint">Múltiple</span></label>
+        <div class="chips" data-id="s6_sens" data-mode="multi">
+          <div class="chip" data-v="Datos personales (clientes, empleados)">Datos personales</div>
+          <div class="chip" data-v="Datos financieros o comerciales">Datos financieros</div>
+          <div class="chip" data-v="Datos regulados (salud, legal...)">Datos regulados</div>
+          <div class="chip" data-v="No manejamos datos sensibles">No manejamos datos sensibles</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Necesitan control de acceso por usuario o rol?</label>
+          <div class="chips" data-id="s6_acceso" data-mode="single">
+            <div class="chip" data-v="Sí, es un requisito">Sí, es un requisito</div>
+            <div class="chip" data-v="Sería deseable">Sería deseable</div>
+            <div class="chip" data-v="No es necesario">No es necesario</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿Se requiere auditoría de accesos?</label>
+          <div class="chips" data-id="s6_audit" data-mode="single">
+            <div class="chip" data-v="Sí, es obligatorio">Sí, es obligatorio</div>
+            <div class="chip" data-v="Sería útil">Sería útil</div>
+            <div class="chip" data-v="No es necesario">No es necesario</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S7 -->
+    <div class="step" data-s="7">
+      <div class="step-head">
+        <div class="step-tag">Sección 07</div>
+        <h2>Escalabilidad y futuro</h2>
+        <p>Proyecciones de crecimiento y nuevas necesidades de integración.</p>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Esperan crecimiento en volumen de datos en 2 años?</label>
+          <div class="chips" data-id="s7_crec" data-mode="single">
+            <div class="chip" data-v="Sí, alto crecimiento">Alto crecimiento</div>
+            <div class="chip" data-v="Crecimiento moderado">Crecimiento moderado</div>
+            <div class="chip" data-v="Se mantendrá estable">Estable</div>
+            <div class="chip" data-v="No lo sé">No lo sé</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿Necesitan datos en tiempo real o puede ser batch?</label>
+          <div class="chips" data-id="s7_rt" data-mode="single">
+            <div class="chip" data-v="Tiempo real (segundos / minutos)">Tiempo real</div>
+            <div class="chip" data-v="Near-real-time (horas)">Casi tiempo real</div>
+            <div class="chip" data-v="Batch (diario / semanal)">Batch diario/semanal</div>
+            <div class="chip" data-v="Depende del caso">Depende del caso</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Prevén incorporar nuevas fuentes de datos a futuro?</label>
+        <textarea id="s7_fuentes" placeholder="Ej: Marketplace externo, sensores IoT, nueva línea de negocio..."></textarea>
+      </div>
+    </div>
+
+    <!-- S8 -->
+    <div class="step" data-s="8">
+      <div class="step-head">
+        <div class="step-tag">Sección 08</div>
+        <h2>Evaluación de soluciones actuales</h2>
+        <p>¿Qué están usando hoy y qué les funciona o no?</p>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Qué tipo de soluciones utilizan? <span class="field-hint">Selección múltiple</span></label>
+        <div class="chips" data-id="s8_sol" data-mode="multi">
+          <div class="chip" data-v="Low-code / No-code (Power Apps, Retool...)">Low-code / No-code</div>
+          <div class="chip" data-v="Desarrollos internos (scripts, código propio)">Desarrollos internos</div>
+          <div class="chip" data-v="Automatización cloud (Zapier, Make, n8n...)">Automatización cloud</div>
+          <div class="chip" data-v="Solo herramientas del proveedor">Solo herramientas del proveedor</div>
+          <div class="chip" data-v="No utilizamos ninguna">No utilizamos ninguna</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Qué valoran de las soluciones actuales?</label>
+          <textarea id="s8_val" placeholder="Ej: Facilidad de uso, no requiere programación..."></textarea>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿Qué problemas detectan? <span class="field-hint">Múltiple</span></label>
+          <div class="chips" data-id="s8_prob" data-mode="multi">
+            <div class="chip" data-v="Falta de escalabilidad">Sin escalabilidad</div>
+            <div class="chip" data-v="Problemas de seguridad">Seguridad</div>
+            <div class="chip" data-v="Difícil de mantener">Difícil de mantener</div>
+            <div class="chip" data-v="Dependencia de pocas personas">Dependencia clave</div>
+            <div class="chip" data-v="Costo elevado">Costo elevado</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S9 -->
+    <div class="step" data-s="9">
+      <div class="step-head">
+        <div class="step-tag">Sección 09</div>
+        <h2>Experiencia de usuario</h2>
+        <p>Preferencias de cómo quieren visualizar y explorar la información.</p>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Qué formato de presentación prefieren?</label>
+          <div class="chips" data-id="s9_fmt" data-mode="single">
+            <div class="chip" data-v="Dashboards interactivos">Dashboards interactivos</div>
+            <div class="chip" data-v="Reportes PDF / Excel">Reportes PDF / Excel</div>
+            <div class="chip" data-v="Portal web con métricas">Portal web</div>
+            <div class="chip" data-v="Combinación de formatos">Combinación</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿El equipo necesita explorar datos por su cuenta?</label>
+          <div class="chips" data-id="s9_auto" data-mode="single">
+            <div class="chip" data-v="Sí, es clave">Sí, es clave</div>
+            <div class="chip" data-v="Para algunos usuarios">Para algunos usuarios</div>
+            <div class="chip" data-v="No, con reportes fijos alcanza">No, con reportes fijos</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Qué es más importante para su área? <span class="field-hint">Del 1 al 5</span></label>
+        <div class="rating-wrap">
+          <div class="rating-row">
+            <div class="rating-lbl">Precisión del dato</div>
+            <div class="rating-chips chips" data-id="s9_prec" data-mode="single">
+              <div class="chip r-chip" data-v="1">1</div><div class="chip r-chip" data-v="2">2</div><div class="chip r-chip" data-v="3">3</div><div class="chip r-chip" data-v="4">4</div><div class="chip r-chip" data-v="5">5</div>
+            </div>
+          </div>
+          <div class="rating-row">
+            <div class="rating-lbl">Visualización e interfaz</div>
+            <div class="rating-chips chips" data-id="s9_viz" data-mode="single">
+              <div class="chip r-chip" data-v="1">1</div><div class="chip r-chip" data-v="2">2</div><div class="chip r-chip" data-v="3">3</div><div class="chip r-chip" data-v="4">4</div><div class="chip r-chip" data-v="5">5</div>
+            </div>
+          </div>
+          <div class="rating-row">
+            <div class="rating-lbl">Velocidad de respuesta</div>
+            <div class="rating-chips chips" data-id="s9_vel" data-mode="single">
+              <div class="chip r-chip" data-v="1">1</div><div class="chip r-chip" data-v="2">2</div><div class="chip r-chip" data-v="3">3</div><div class="chip r-chip" data-v="4">4</div><div class="chip r-chip" data-v="5">5</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S10 -->
+    <div class="step" data-s="10">
+      <div class="step-head">
+        <div class="step-tag">Sección 10</div>
+        <h2>Presupuesto y prioridades</h2>
+        <p>Últimas preguntas para alinear expectativas y definir el alcance inicial.</p>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-lbl">¿Existe un presupuesto asignado?</label>
+          <div class="chips" data-id="s10_pres" data-mode="single">
+            <div class="chip" data-v="Sí, presupuesto definido">Sí, definido</div>
+            <div class="chip" data-v="En evaluación">En evaluación</div>
+            <div class="chip" data-v="No hay presupuesto aún">No hay presupuesto</div>
+            <div class="chip" data-v="Prefiero no indicarlo">Prefiero no indicarlo</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">¿En qué plazo esperan los primeros resultados?</label>
+          <div class="chips" data-id="s10_plazo" data-mode="single">
+            <div class="chip" data-v="Menos de 1 mes">Menos de 1 mes</div>
+            <div class="chip" data-v="1 a 3 meses">1 a 3 meses</div>
+            <div class="chip" data-v="3 a 6 meses">3 a 6 meses</div>
+            <div class="chip" data-v="Más de 6 meses">Más de 6 meses</div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">¿Cuál es la prioridad principal del proyecto?</label>
+        <div class="chips" data-id="s10_prio" data-mode="single">
+          <div class="chip" data-v="Rapidez de implementación">Rapidez de implementación</div>
+          <div class="chip" data-v="Menor costo posible">Menor costo posible</div>
+          <div class="chip" data-v="Robustez y escalabilidad">Robustez y escalabilidad</div>
+          <div class="chip" data-v="Facilidad de uso">Facilidad de uso</div>
+          <div class="chip" data-v="Seguridad y cumplimiento">Seguridad y cumplimiento</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Email para recibir el resumen</label>
+        <input type="email" id="s10_email" placeholder="contacto@empresa.com">
+      </div>
+      <div class="field">
+        <label class="field-lbl">Comentarios adicionales <span class="field-hint">Opcional</span></label>
+        <textarea id="s10_coment" placeholder="Cualquier contexto adicional que considere relevante..."></textarea>
+      </div>
+    </div>
+
+    <!-- NAV BUTTONS -->
+    <div class="nav-footer" id="nav-footer">
+      <button class="btn" id="btn-prev" onclick="prevStep()" style="display:none">&#8592; Anterior</button>
+      <button class="btn primary" id="btn-next" onclick="nextStep()">Siguiente &#8594;</button>
+    </div>
+
+    <!-- CONFIRM -->
+    <div class="confirm" id="confirm">
+      <div class="confirm-ico">&#10003;</div>
+      <h2>Relevamiento completado</h2>
+      <p>Todas las respuestas fueron registradas. Podés enviarlas por email o descargar el resumen en texto.</p>
+      <div class="confirm-btns">
+        <button class="btn" onclick="openModal()">Enviar por email</button>
+        <button class="btn" onclick="downloadTxt()">Descargar .html</button>
+        <button class="btn primary" onclick="location.reload()">Nuevo relevamiento</button>
+      </div>
+    </div>
+
+  </div><!-- /form-area -->
+</main>
+</div><!-- /shell -->
+
+<!-- MODAL -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>Enviar resumen por email</h3>
+      <button class="modal-x" onclick="closeModal()">&#215;</button>
+    </div>
+    <div class="modal-fields">
+      <div class="modal-fl">
+        <label>Para (fijo)</label>
+        <input type="text" id="m-to" value="Maximiliano@d-byte.com.ar; javier@d-byte.com.ar" readonly style="opacity:0.55;cursor:default;">
+      </div>
+      <div class="modal-fl">
+        <label>Asunto</label>
+        <input type="text" id="m-subj" placeholder="Relevamiento BI/DW">
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="email-preview" style="border-radius:4px;overflow:hidden;"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn" onclick="copyTxt()">Copiar HTML</button>
+      <button class="btn" onclick="downloadTxt()">Descargar .html</button>
+      <button class="btn primary" onclick="sendEmail()">Abrir cliente de correo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var STEPS = [
+  {n:1,lbl:'Información general'},
+  {n:2,lbl:'Objetivos de negocio'},
+  {n:3,lbl:'Fuentes de datos'},
+  {n:4,lbl:'Integración'},
+  {n:5,lbl:'Reportería actual'},
+  {n:6,lbl:'Seguridad y acceso'},
+  {n:7,lbl:'Escalabilidad'},
+  {n:8,lbl:'Soluciones actuales'},
+  {n:9,lbl:'Experiencia de usuario'},
+  {n:10,lbl:'Presupuesto'}
+];
+
+var LABELS = {
+  s1_area:'Área / Unidad de negocio', s1_responsable:'Responsable', s1_rol:'Rol', s1_fecha:'Fecha',
+  s2_decisiones:'Tipos de decisiones', s2_problemas:'Problemas actuales', s2_kpis:'KPIs más importantes',
+  s3_sistemas:'Sistemas / fuentes', s3_ubicacion:'Ubicación de datos', s3_frecuencia:'Frecuencia de actualización', s3_resp:'Responsables de fuentes',
+  s4_cruce:'Cruce de datos', s4_ejemplo:'Ejemplo de cruce', s4_como:'Cómo integran hoy',
+  s5_herr:'Herramientas de reportería', s5_cons:'Consumidores', s5_comp:'Cómo se comparten', s5_limit:'Limitaciones actuales',
+  s6_sens:'Datos sensibles', s6_acceso:'Control de acceso', s6_audit:'Auditoría de accesos',
+  s7_crec:'Crecimiento esperado', s7_rt:'Frecuencia de acceso', s7_fuentes:'Nuevas fuentes futuras',
+  s8_sol:'Soluciones en uso', s8_val:'Qué valoran', s8_prob:'Problemas detectados',
+  s9_fmt:'Formato preferido', s9_auto:'Autoservicio', s9_prec:'Prioridad: Precisión', s9_viz:'Prioridad: Visualización', s9_vel:'Prioridad: Velocidad',
+  s10_pres:'Presupuesto', s10_plazo:'Plazo esperado', s10_prio:'Prioridad principal', s10_email:'Email de contacto', s10_coment:'Comentarios'
+};
+
+var state = {};
+var cur = 1;
+var done = {};
+
+// Init state
+Object.keys(LABELS).forEach(function(k){ state[k] = null; });
+
+// Build sidebar
+function buildNav() {
+  var nav = document.getElementById('sb-nav');
+  nav.innerHTML = STEPS.map(function(s){
+    return '<div class="nav-item' + (s.n===1?' active':'') + '" id="ni-'+s.n+'" onclick="goTo('+s.n+')">' +
+      '<div class="nav-num" id="nn-'+s.n+'">'+s.n+'</div>' +
+      '<div class="nav-lbl">'+s.lbl+'</div>' +
+      '<div class="nav-check">&#10003;</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Chips
+function initChips() {
+  document.querySelectorAll('.chips[data-id]').forEach(function(g){
+    var id = g.dataset.id;
+    var mode = g.dataset.mode;
+    if(mode==='multi') state[id] = [];
+    else state[id] = null;
+    g.querySelectorAll('.chip').forEach(function(c){
+      c.addEventListener('click', function(){
+        var v = c.dataset.v;
+        if(mode==='single'){
+          g.querySelectorAll('.chip').forEach(function(x){ x.classList.remove('sel'); });
+          c.classList.add('sel');
+          state[id] = v;
+        } else {
+          if(c.classList.contains('sel')){
+            c.classList.remove('sel');
+            state[id] = state[id].filter(function(x){ return x!==v; });
+          } else {
+            c.classList.add('sel');
+            if(!Array.isArray(state[id])) state[id]=[];
+            state[id].push(v);
+          }
+        }
+        updateProg();
+      });
+    });
+  });
+}
+
+// Inputs
+function initInputs() {
+  document.querySelectorAll('input[id], textarea[id]').forEach(function(el){
+    state[el.id] = '';
+    el.addEventListener('input', function(){ state[el.id]=el.value; updateProg(); });
+  });
+}
+
+// Progress
+function updateProg() {
+  var keys = Object.keys(LABELS);
+  var filled = 0;
+  keys.forEach(function(k){
+    var v = state[k];
+    if(Array.isArray(v)&&v.length>0) filled++;
+    else if(!Array.isArray(v)&&v&&v.toString().trim()) filled++;
+  });
+  var pct = Math.round(filled/keys.length*100);
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = pct+'%';
+}
+
+// Navigate
+function goTo(n) {
+  document.querySelector('.step[data-s="'+cur+'"]').classList.remove('active');
+  document.getElementById('ni-'+cur).classList.remove('active');
+  cur = n;
+  document.querySelector('.step[data-s="'+cur+'"]').classList.add('active');
+  document.getElementById('ni-'+cur).classList.add('active');
+  document.getElementById('btn-prev').style.display = n>1?'inline-block':'none';
+  document.getElementById('btn-next').textContent = n===10?'Finalizar \u2713':'Siguiente \u2192';
+  document.getElementById('tb-sup').textContent = 'Sección '+n+' de 10';
+  document.getElementById('tb-title').textContent = STEPS[n-1].lbl;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function nextStep() {
+  done[cur] = true;
+  var ni = document.getElementById('ni-'+cur);
+  var nn = document.getElementById('nn-'+cur);
+  ni.classList.add('done');
+  nn.textContent = '\u2713';
+  if(cur===10){
+    document.querySelector('.step[data-s="10"]').classList.remove('active');
+    document.getElementById('nav-footer').style.display='none';
+    document.getElementById('confirm').classList.add('active');
+    document.getElementById('tb-sup').textContent = 'Completado';
+    document.getElementById('tb-title').textContent = 'Relevamiento finalizado';
+    updateProg();
+    prefillModal();
+  } else {
+    goTo(cur+1);
+  }
+}
+
+function prevStep() { goTo(cur-1); }
+
+// ── Build HTML email ──
+function val(k) {
+  var v = state[k];
+  if (Array.isArray(v)) return v.length ? v : null;
+  if (v && v.toString().trim()) return v.toString().trim();
+  return null;
+}
+
+function tagsHtml(arr) {
+  if (!arr || !arr.length) return '<span style="color:#999;font-style:italic;">No especificado</span>';
+  return arr.map(function(t){
+    return '<span style="display:inline-block;background:#F0F7FF;color:#1B4FD8;border:1px solid #C0CFFA;border-radius:20px;padding:3px 12px;font-size:12px;margin:2px 3px 2px 0;font-family:Arial,sans-serif;">' + esc(t) + '</span>';
+  }).join('');
+}
+
+function textVal(k) {
+  var v = val(k);
+  if (!v) return '<span style="color:#999;font-style:italic;">No especificado</span>';
+  if (Array.isArray(v)) return tagsHtml(v);
+  return '<span style="color:#1A1A1A;">' + esc(v).replace(/\n/g,'<br>') + '</span>';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sectionHtml(title, num, rows) {
+  var rowsHtml = rows.map(function(r){
+    var k = r[0]; var lbl = r[1];
+    var v = val(k);
+    var isMulti = Array.isArray(state[k]);
+    var content = isMulti ? tagsHtml(v) : textVal(k);
+    return '<tr>' +
+      '<td style="padding:10px 16px 10px 0;vertical-align:top;width:38%;border-bottom:1px solid #F0F0F0;">' +
+        '<span style="font-size:12px;color:#666;font-family:Arial,sans-serif;line-height:1.4;">' + esc(lbl) + '</span>' +
+      '</td>' +
+      '<td style="padding:10px 0 10px 16px;vertical-align:top;border-bottom:1px solid #F0F0F0;border-left:1px solid #F0F0F0;">' +
+        '<span style="font-size:13px;font-family:Arial,sans-serif;line-height:1.5;">' + content + '</span>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  return '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;border-collapse:collapse;">' +
+    '<tr><td colspan="2" style="padding:0 0 0 0;">' +
+      '<table width="100%" cellpadding="0" cellspacing="0">' +
+        '<tr>' +
+          '<td style="background:#1A1A1A;border-radius:6px 6px 0 0;padding:10px 16px;">' +
+            '<span style="font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#999;margin-right:10px;">' + String(num).padStart(2,'0') + '</span>' +
+            '<span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#FFFFFF;text-transform:uppercase;letter-spacing:0.05em;">' + esc(title) + '</span>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E8E8E8;border-top:none;border-radius:0 0 6px 6px;background:#FFFFFF;">' +
+        '<tbody>' + rowsHtml + '</tbody>' +
+      '</table>' +
+    '</td></tr>' +
+  '</table>';
+}
+
+function buildEmailHtml() {
+  var area = val('s1_area') || '—';
+  var resp = val('s1_responsable') || '—';
+  var rol  = val('s1_rol') || '—';
+  var fecha = val('s1_fecha') || new Date().toLocaleDateString('es-AR');
+  var fechaFmt = fecha;
+  try { var d = new Date(fecha+'T00:00:00'); fechaFmt = d.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'}); } catch(e){}
+  var generado = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+
+  var s2 = sectionHtml('Objetivos de negocio', 2, [
+    ['s2_decisiones','Decisiones que necesitan tomar'],
+    ['s2_problemas','Problemas con la información actual'],
+    ['s2_kpis','KPIs más importantes']
+  ]);
+  var s3 = sectionHtml('Fuentes de datos', 3, [
+    ['s3_sistemas','Sistemas utilizados'],
+    ['s3_ubicacion','Ubicación de los datos'],
+    ['s3_frecuencia','Frecuencia de actualización'],
+    ['s3_resp','Responsables de fuentes']
+  ]);
+  var s4 = sectionHtml('Integración y uso de datos', 4, [
+    ['s4_cruce','¿Necesitan cruzar datos?'],
+    ['s4_ejemplo','Ejemplo de cruce'],
+    ['s4_como','Cómo integran hoy']
+  ]);
+  var s5 = sectionHtml('Reportería actual', 5, [
+    ['s5_herr','Herramientas de reportería'],
+    ['s5_cons','Consumidores de reportes'],
+    ['s5_comp','Cómo se comparten'],
+    ['s5_limit','Limitaciones actuales']
+  ]);
+  var s6 = sectionHtml('Seguridad y acceso', 6, [
+    ['s6_sens','Datos sensibles'],
+    ['s6_acceso','Control de acceso'],
+    ['s6_audit','Auditoría de accesos']
+  ]);
+  var s7 = sectionHtml('Escalabilidad y futuro', 7, [
+    ['s7_crec','Crecimiento esperado'],
+    ['s7_rt','Frecuencia de acceso requerida'],
+    ['s7_fuentes','Nuevas fuentes a integrar']
+  ]);
+  var s8 = sectionHtml('Evaluación de soluciones', 8, [
+    ['s8_sol','Soluciones en uso'],
+    ['s8_val','Qué valoran'],
+    ['s8_prob','Problemas detectados']
+  ]);
+  var s9 = sectionHtml('Experiencia de usuario', 9, [
+    ['s9_fmt','Formato preferido'],
+    ['s9_auto','Autoservicio'],
+    ['s9_prec','Prioridad: Precisión del dato'],
+    ['s9_viz','Prioridad: Visualización'],
+    ['s9_vel','Prioridad: Velocidad']
+  ]);
+  var s10 = sectionHtml('Presupuesto y prioridades', 10, [
+    ['s10_pres','Presupuesto asignado'],
+    ['s10_plazo','Plazo esperado'],
+    ['s10_prio','Prioridad principal'],
+    ['s10_coment','Comentarios adicionales']
+  ]);
+
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Relevamiento BI/DW</title></head>' +
+  '<body style="margin:0;padding:0;background:#F4F4F0;font-family:Arial,Helvetica,sans-serif;">' +
+  '<table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F0;padding:32px 16px;">' +
+    '<tr><td align="center">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;">' +
+
+        // HEADER
+        '<tr><td style="background:#1A1A1A;border-radius:8px 8px 0 0;padding:32px 32px 24px;">' +
+          '<table width="100%" cellpadding="0" cellspacing="0">' +
+            '<tr>' +
+              '<td><span style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#C6EF3E;font-weight:700;font-family:Arial,sans-serif;">d-byte · Relevamiento técnico</span></td>' +
+              '<td align="right"><span style="font-size:11px;color:#666;font-family:Arial,sans-serif;">' + generado + '</span></td>' +
+            '</tr>' +
+          '</table>' +
+          '<div style="margin-top:14px;">' +
+            '<div style="font-size:22px;font-weight:700;color:#FFFFFF;line-height:1.2;font-family:Arial,sans-serif;">Centralización de datos y reportería</div>' +
+            '<div style="font-size:13px;color:#888;margin-top:4px;font-family:Arial,sans-serif;">Business Intelligence / Data Warehouse — Cuestionario de relevamiento</div>' +
+          '</div>' +
+          '<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #333;padding-top:18px;">' +
+            '<tr>' +
+              '<td style="padding-right:24px;">' +
+                '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#555;font-family:Arial,sans-serif;margin-bottom:3px;">Área</div>' +
+                '<div style="font-size:13px;font-weight:600;color:#FFF;font-family:Arial,sans-serif;">' + esc(area) + '</div>' +
+              '</td>' +
+              '<td style="padding-right:24px;">' +
+                '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#555;font-family:Arial,sans-serif;margin-bottom:3px;">Responsable</div>' +
+                '<div style="font-size:13px;font-weight:600;color:#FFF;font-family:Arial,sans-serif;">' + esc(resp) + '</div>' +
+              '</td>' +
+              '<td style="padding-right:24px;">' +
+                '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#555;font-family:Arial,sans-serif;margin-bottom:3px;">Rol</div>' +
+                '<div style="font-size:13px;font-weight:600;color:#FFF;font-family:Arial,sans-serif;">' + esc(rol) + '</div>' +
+              '</td>' +
+              '<td>' +
+                '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#555;font-family:Arial,sans-serif;margin-bottom:3px;">Fecha</div>' +
+                '<div style="font-size:13px;font-weight:600;color:#FFF;font-family:Arial,sans-serif;">' + esc(fechaFmt) + '</div>' +
+              '</td>' +
+            '</tr>' +
+          '</table>' +
+        '</td></tr>' +
+
+        // BODY
+        '<tr><td style="background:#F4F4F0;padding:12px 0;">' +
+          s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 +
+        '</td></tr>' +
+
+        // FOOTER
+        '<tr><td style="background:#1A1A1A;border-radius:0 0 8px 8px;padding:18px 32px;text-align:center;">' +
+          '<span style="font-size:11px;color:#555;font-family:Arial,sans-serif;">d-byte Consulting &mdash; Generado el ' + generado + '</span>' +
+        '</td></tr>' +
+
+      '</table>' +
+    '</td></tr>' +
+  '</table>' +
+  '</body></html>';
+}
+
+function prefillModal() {
+  var area = val('s1_area') || '';
+  document.getElementById('m-to').value = 'Maximiliano@d-byte.com.ar; javier@d-byte.com.ar';
+  document.getElementById('m-subj').value = 'Relevamiento BI/DW' + (area ? ' — ' + area : '');
+
+  // Show HTML preview in iframe inside modal
+  var preview = document.getElementById('email-preview');
+  preview.innerHTML = '';
+  var iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:100%;height:420px;border:none;border-radius:4px;background:#fff;';
+  iframe.setAttribute('scrolling','yes');
+  preview.appendChild(iframe);
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(buildEmailHtml()); doc.close();
+}
+
+function openModal() { prefillModal(); document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function copyTxt() {
+  var html = buildEmailHtml();
+  var blob = new Blob([html], {type:'text/html'});
+  if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+    var plain = new Blob([buildPlainTxt()], {type:'text/plain'});
+    navigator.clipboard.write([new ClipboardItem({'text/html': blob, 'text/plain': plain})]).then(function(){
+      alert('HTML copiado. Pegá directamente en Outlook o Gmail.');
+    }).catch(function(){ fallbackCopyHtml(html); });
+  } else { fallbackCopyHtml(html); }
+}
+
+function fallbackCopyHtml(html) {
+  var ta = document.createElement('textarea');
+  ta.value = html; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); alert('HTML copiado al portapapeles.'); } catch(e){ alert('No se pudo copiar automáticamente.'); }
+  document.body.removeChild(ta);
+}
+
+function buildPlainTxt() {
+  var secs = [
+    {t:'INFORMACION GENERAL', keys:['s1_area','s1_responsable','s1_rol','s1_fecha']},
+    {t:'OBJETIVOS DE NEGOCIO', keys:['s2_decisiones','s2_problemas','s2_kpis']},
+    {t:'FUENTES DE DATOS', keys:['s3_sistemas','s3_ubicacion','s3_frecuencia','s3_resp']},
+    {t:'INTEGRACION Y USO DE DATOS', keys:['s4_cruce','s4_ejemplo','s4_como']},
+    {t:'REPORTERIA ACTUAL', keys:['s5_herr','s5_cons','s5_comp','s5_limit']},
+    {t:'SEGURIDAD Y ACCESO', keys:['s6_sens','s6_acceso','s6_audit']},
+    {t:'ESCALABILIDAD Y FUTURO', keys:['s7_crec','s7_rt','s7_fuentes']},
+    {t:'EVALUACION DE SOLUCIONES', keys:['s8_sol','s8_val','s8_prob']},
+    {t:'EXPERIENCIA DE USUARIO', keys:['s9_fmt','s9_auto','s9_prec','s9_viz','s9_vel']},
+    {t:'PRESUPUESTO Y PRIORIDADES', keys:['s10_pres','s10_plazo','s10_prio','s10_coment']}
+  ];
+  var txt = 'RELEVAMIENTO BI / DATA WAREHOUSE\n' + '='.repeat(48) + '\n';
+  txt += 'Area: '+(val('s1_area')||'—')+' | Responsable: '+(val('s1_responsable')||'—')+'\n\n';
+  secs.forEach(function(sec){
+    txt += '\n-- '+sec.t+' --\n';
+    sec.keys.forEach(function(k){
+      var v = state[k];
+      var lbl = LABELS[k]||k;
+      var disp = Array.isArray(v)?(v.length?v.join(', '):'—'):(v&&v.trim?v.trim():v||'—');
+      txt += lbl+':\n  '+disp+'\n\n';
+    });
+  });
+  return txt;
+}
+
+function sendEmail() {
+  var subj = encodeURIComponent(document.getElementById('m-subj').value);
+  var body = encodeURIComponent(buildPlainTxt());
+  var extra = (state['s10_email']&&state['s10_email'].trim()) ? '&cc='+encodeURIComponent(state['s10_email']) : '';
+  window.location.href = 'mailto:Maximiliano@d-byte.com.ar,javier@d-byte.com.ar?subject='+subj+'&body='+body+extra;
+}
+
+function downloadTxt() {
+  var html = buildEmailHtml();
+  var b = new Blob([html],{type:'text/html;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'relevamiento-bi-dw.html';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function(){
+  var df = document.getElementById('s1_fecha');
+  if(df){ df.value = new Date().toISOString().split('T')[0]; state['s1_fecha']=df.value; }
+  buildNav();
+  initChips();
+  initInputs();
+  updateProg();
+});
+</script>
+</body>
+</html>
